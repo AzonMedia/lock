@@ -20,7 +20,7 @@ implements BackendInterface
         //does nothing
     }
 
-    public function release_lock(string $resource)
+    public function release_lock(string $resource) : void
     {
         //does nothing
     }

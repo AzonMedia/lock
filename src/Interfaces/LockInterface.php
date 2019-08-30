@@ -13,7 +13,7 @@ interface LockInterface
     public const LOCK_PW = 16;//ProtectedWrite - This is the traditional update lock
     public const LOCK_EX = 32;//Exclusive - This is the traditional exclusive lock
 
-    public const LICM_MAP = [
+    public const LOCK_MAP = [
         self::LOCK_NL   => 'NL',
         self::LOCK_CR   => 'CR',
         self::LOCK_CW   => 'CW',
@@ -25,4 +25,30 @@ interface LockInterface
     //aliases
     public const READ_LOCK = self::LOCK_PR;
     public const WRITE_LOCK = self::LOCK_PW;
+
+    /**
+     * @param int $lock_level
+     * @param int $lock_hold_microtime
+     */
+    public function acquire(int $lock_level, int $lock_hold_microtime) : void ;
+
+    /**
+     * @return bool
+     */
+    public function is_acquired() : bool ;
+
+    /**
+     * @return string
+     */
+    public function get_resource() : string ;
+
+    /**
+     * @return int
+     */
+    public function get_lock_level() : int ;
+
+    /**
+     *
+     */
+    public function release() : void ;
 }

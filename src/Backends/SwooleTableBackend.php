@@ -114,13 +114,6 @@ implements BackendInterface
             throw new \InvalidArgumentException(sprintf('The provided lock level %s is not valid. For the valid lock levels please see %s.'), $lock_level, LockInterface::class);
         }
 
-        if ($this->SwooleTable->count() > 1) {
-            //die("AAAAAAAAAAAAAAAAAAAAAAAAA");
-            print "AAAAAAAAAAAAAAAAAAAAAAAAA";
-        }
-
-        print 'ACQUIRE'.PHP_EOL;
-
         $lock_requested_time = microtime(TRUE) * 1000000;
 
         do {
@@ -171,7 +164,6 @@ implements BackendInterface
                     //wait... someone else just got in
                 }
             }
-            //print 'SLEEP'.PHP_EOL;
             \Co::sleep($this->wait_step_microtime / 1000000);//do not block and let other coroutines to executine in the meantime
             $current_microtime = (int) (microtime(TRUE) * 1000000);
             if ($current_microtime - $lock_wait_microtime > $lock_requested_time) {
@@ -186,8 +178,6 @@ implements BackendInterface
         if (\Co::getCid() === -1) {
             throw new \RunTimeException(sprintf('The %s() method can be used only in coroutine context.'));
         }
-
-        print 'RELEASE'.PHP_EOL;
 
         $this->SwooleTable->del($resource);
     }

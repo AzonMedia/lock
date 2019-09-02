@@ -112,6 +112,15 @@ implements LockInterface
         return $this->lock_level;
     }
 
+    public function is_valid() : bool
+    {
+        $ret = FALSE;
+        if ($this->is_acquired() && $this->lock_acquired_microtime + $this->lock_hold_microtime > microtime(TRUE) * 1000000 ) {
+            $ret = TRUE;
+        }
+        return $ret;
+    }
+
     public function release() : void
     {
         if ($this->is_acquired()) {

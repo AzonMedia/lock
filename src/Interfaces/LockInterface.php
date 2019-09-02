@@ -84,9 +84,18 @@ interface LockInterface
     public function acquire(int $lock_level, int $lock_hold_microtime) : void ;
 
     /**
+     * Returns TRUE if the lock is acquired.
+     * This doesnt necessarily mean that the lock is still valid - it may have expired (@see $lock_hold_microtime)
+     * To check is the lock is still valid please see @see self::is_valid()
      * @return bool
      */
     public function is_acquired() : bool ;
+
+    /**
+     * Returns TRUE if the lock is acquired and it is still not expired.
+     * @return bool
+     */
+    public function is_valid() : bool ;
 
     /**
      * @return string

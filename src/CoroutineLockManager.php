@@ -1,5 +1,5 @@
 <?php
-
+declare(strict_types=1);
 
 namespace Azonmedia\Lock;
 
@@ -13,7 +13,7 @@ use Azonmedia\Utilities\GeneralUtil;
  * Class CoroutineLockManager
  * To be used in coroutine context.
  * It creates a separate instance of LockManager for each coroutine.
- * This instance is destroyed at the end of the coroutine (bu using defer())
+ * This instance is destroyed at the end of the coroutine (by using defer())
  * @package Azonmedia\lock
  */
 class CoroutineLockManager
@@ -77,7 +77,7 @@ implements LockManagerInterface
             }
             $cid = $pcid;
         } while (true);
-        print $cid.PHP_EOL;
+
         return $cid;
     }
 

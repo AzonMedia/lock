@@ -1,5 +1,5 @@
 <?php
-
+declare(strict_types=1);
 
 namespace Azonmedia\Lock\Interfaces;
 
@@ -20,6 +20,57 @@ interface LockInterface
         self::LOCK_PR   => 'PR',
         self::LOCK_PW   => 'PW',
         self::LOCK_EX   => 'EX',
+    ];
+
+    public const LOCK_COMPATIBILITY_MATRIX = [
+        self::LOCK_NL => [
+            self::LOCK_NL   => TRUE,
+            self::LOCK_CR   => TRUE,
+            self::LOCK_CW   => TRUE,
+            self::LOCK_PR   => TRUE,
+            self::LOCK_PW   => TRUE,
+            self::LOCK_EX   => TRUE,
+        ],
+        self::LOCK_CR => [
+            self::LOCK_NL   => TRUE,
+            self::LOCK_CR   => TRUE,
+            self::LOCK_CW   => TRUE,
+            self::LOCK_PR   => TRUE,
+            self::LOCK_PW   => TRUE,
+            self::LOCK_EX   => FALSE,
+        ],
+        self::LOCK_CW => [
+            self::LOCK_NL   => TRUE,
+            self::LOCK_CR   => TRUE,
+            self::LOCK_CW   => TRUE,
+            self::LOCK_PR   => FALSE,
+            self::LOCK_PW   => FALSE,
+            self::LOCK_EX   => FALSE,
+        ],
+        self::LOCK_PR => [
+            self::LOCK_NL   => TRUE,
+            self::LOCK_CR   => TRUE,
+            self::LOCK_CW   => FALSE,
+            self::LOCK_PR   => TRUE,
+            self::LOCK_PW   => FALSE,
+            self::LOCK_EX   => FALSE,
+        ],
+        self::LOCK_PW => [
+            self::LOCK_NL   => TRUE,
+            self::LOCK_CR   => TRUE,
+            self::LOCK_CW   => FALSE,
+            self::LOCK_PR   => FALSE,
+            self::LOCK_PW   => FALSE,
+            self::LOCK_EX   => FALSE,
+        ],
+        self::LOCK_EX => [
+            self::LOCK_NL   => TRUE,
+            self::LOCK_CR   => FALSE,
+            self::LOCK_CW   => FALSE,
+            self::LOCK_PR   => FALSE,
+            self::LOCK_PW   => FALSE,
+            self::LOCK_EX   => FALSE,
+        ],
     ];
 
     //aliases

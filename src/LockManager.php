@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Azonmedia\Lock;
 
@@ -76,8 +77,9 @@ implements LockManagerInterface
         if (!empty($this->lock_stack[$resource])) {
             //no matter what is the lock level of the previous lock we need to extend the lock like it was acquired just now
             $PreviousLock = $this->lock_stack[$resource][count($this->lock_stack[$resource]) - 1]['lock'];
-            $previous_lock_level = $PreviousLock->get_lock_level();
-            if ($previous_lock_level < $lock_level) {
+            //$previous_lock_level = $PreviousLock->get_lock_level();//wrong as the lock level in the $Lock object is elevated to the previous one.. this way once elevated it will be never dropped to a lower level
+            $previous_lock_level = $this->lock_stack[$resource][count($this->lock_stack[$resource]) - 1]['lock_level'];
+            if ($previous_lock_level > $lock_level) {
                 //we cant lower the lock level so the lock level is raised to the previous one and reacquire is done at this new level
                 $lock_level_to_set = $previous_lock_level;
             }
@@ -85,9 +87,9 @@ implements LockManagerInterface
         }
         if (empty($Lock)) {
             //there is was no previous lock for this resource from this execution
-            $Lock = new Lock($this->Backend, $resource, $lock_level, $lock_hold_microtime, $lock_wait_microtime, $acquire = FALSE);
+            $Lock = new Lock($this->Backend, $resource, $lock_level_to_set, $lock_hold_microtime, $lock_wait_microtime, $acquire = FALSE);
         }
-        $Lock->acquire($lock_level, $lock_hold_microtime);//acquire or reacquire (if there was a previous lock)
+        $Lock->acquire($lock_level_to_set, $lock_hold_microtime);//acquire or reacquire (if there was a previous lock)
         $this->lock_stack[$resource][] = ['lock' => $Lock, 'lock_level' => $lock_level];
         return $Lock;
 

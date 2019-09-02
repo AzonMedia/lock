@@ -7,6 +7,7 @@ namespace Azonmedia\Lock;
 use Azonmedia\Lock\Interfaces\BackendInterface;
 use Azonmedia\Lock\Interfaces\LockInterface;
 
+
 class Lock
 implements LockInterface
 {

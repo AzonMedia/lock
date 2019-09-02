@@ -95,6 +95,37 @@ implements LockManagerInterface
 
     public function release_all_own_locks() : void
     {
-        throw new \RuntimeException(sprintf('The method %s can not be invoked on %s. Instead it can be used on %s.', __FUNCTION__, __CLASS__, LockManager::class));
+        if (\Co::getCid() === -1) {
+            throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
+        }
+        $root_cid = self::get_root_coroutine_id();
+        if (!isset($this->lock_managers[$root_cid])) {
+            throw new \LogicException(sprintf('The %s has no %s for root coroutine %s.', __CLASS__, LockManager::class, $root_cid));
+        }
+        $this->lock_managers[$root_cid]->release_all_own_locks();
+    }
+
+    public function get_all_own_locks() : array
+    {
+        if (\Co::getCid() === -1) {
+            throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
+        }
+        $root_cid = self::get_root_coroutine_id();
+        if (!isset($this->lock_managers[$root_cid])) {
+            throw new \LogicException(sprintf('The %s has no %s for root coroutine %s.', __CLASS__, LockManager::class, $root_cid));
+        }
+        return $this->lock_managers[$root_cid]->get_all_own_locks();
+    }
+
+    public function get_lock_level(string $resource) : ?int
+    {
+        if (\Co::getCid() === -1) {
+            throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
+        }
+        $root_cid = self::get_root_coroutine_id();
+        if (!isset($this->lock_managers[$root_cid])) {
+            throw new \LogicException(sprintf('The %s has no %s for root coroutine %s.', __CLASS__, LockManager::class, $root_cid));
+        }
+        return $this->lock_managers[$root_cid]->get_lock_level($resource);
     }
 }

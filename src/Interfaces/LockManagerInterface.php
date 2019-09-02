@@ -6,6 +6,10 @@ namespace Azonmedia\Lock\Interfaces;
 interface LockManagerInterface
 {
 
+
+    public const DEFAULT_LOCK_HOLD_MICROTIME = 15 * 1000000;
+    public const DEFAULT_LOCK_WAIT_MICROTIME = 20 * 1000000;
+
     /**
      * The returned acquired lock may have a higher lock level than the requested - this can happen if a lock at a higher level was already acquired in a previous stack frame.
      * @param string $resource

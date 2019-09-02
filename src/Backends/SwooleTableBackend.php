@@ -197,6 +197,7 @@ class SwooleTableBackend
                     //wait... someone else just got in
                 }
             }
+
             \Co::sleep($this->wait_step_microtime / 1000000);//do not block and let other coroutines to executine in the meantime
             $current_microtime = (int) (microtime(TRUE) * 1000000);
             if ($current_microtime - $lock_wait_microtime > $lock_requested_time) {

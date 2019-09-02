@@ -18,9 +18,6 @@ class LockManager
 implements LockManagerInterface
 {
 
-    public const DEFAULT_LOCK_HOLD_MICROTIME = 2 * 1000000;
-    public const DEFAULT_LOCK_WAIT_MICROTIME = 2 * 1000000;
-
     protected $Backend;
 
     protected $lock_stack = [];
@@ -79,7 +76,7 @@ implements LockManagerInterface
             $PreviousLock = $this->lock_stack[$resource][count($this->lock_stack[$resource]) - 1]['lock'];
             //$previous_lock_level = $PreviousLock->get_lock_level();//wrong as the lock level in the $Lock object is elevated to the previous one.. this way once elevated it will be never dropped to a lower level
             $previous_lock_level = $this->lock_stack[$resource][count($this->lock_stack[$resource]) - 1]['lock_level'];
-            if ($previous_lock_level > $lock_level) {
+            if ($previous_lock_level > $lock_level) { //if the previous lock level is higher than the currently requested one
                 //we cant lower the lock level so the lock level is raised to the previous one and reacquire is done at this new level
                 $lock_level_to_set = $previous_lock_level;
             }
@@ -109,6 +106,9 @@ implements LockManagerInterface
             if (!isset($this->lock_stack[$resource])) {
                 throw new \LogicException(sprintf('The LockManager stack has no data for resource %s.', $resource));
             }
+            if (!isset($this->lock_stack[$resource][count($this->lock_stack[$resource]) - 1])) {
+                throw new \RuntimeException(sprintf('Attempting to release a lock on resource "%s" without obtaining any locks before that.'));
+            }
 
             $Lock = $this->lock_stack[$resource][count($this->lock_stack[$resource]) - 1]['lock'];
             if (isset($this->lock_stack[$resource][count($this->lock_stack[$resource]) - 2])) {
@@ -119,6 +119,7 @@ implements LockManagerInterface
             } else {
                 $Lock->release();
             }
+            array_pop($this->lock_stack[$resource]);
 
         } elseif ($ScopeReference instanceof ScopeReference) {
             $ScopeReference = NULL;//this should trigger the destructor and the release
@@ -158,6 +159,22 @@ implements LockManagerInterface
 
             }
         }
+    }
+
+    public function get_all_own_locks() : array
+    {
+        return $this->lock_stack;
+    }
+
+    /**
+     * Returns the current lock level for the provided resource.
+     * Returns NULL if this is not currently locked by this execution.
+     * @param string $resource
+     * @return int|null
+     */
+    public function get_lock_level(string $resource) : ?int
+    {
+        return isset($this->lock_stack[$resource]) ? $this->lock_stack[$resource][ count($this->lock_stack[$resource]) -1 ]['lock_level'] : NULL;
     }
 
     /**

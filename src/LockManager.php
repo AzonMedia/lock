@@ -8,6 +8,7 @@ use Azonmedia\Lock\Interfaces\LockInterface;
 use Azonmedia\Lock\Interfaces\LockManagerInterface;
 use Azonmedia\Utilities\GeneralUtil;
 use Guzaba2\Kernel\Kernel;
+use Psr\Log\LoggerInterface;
 
 /**
  * Class LockManager
@@ -18,13 +19,27 @@ class LockManager
 implements LockManagerInterface
 {
 
+    /**
+     * @var BackendInterface
+     */
     protected $Backend;
+
+    /**
+     * @var LoggerInterface
+     */
+    protected $Logger;
 
     protected $lock_stack = [];
 
-    public function __construct(BackendInterface $Backend)
+    public function __construct(BackendInterface $Backend, LoggerInterface $Logger)
     {
         $this->Backend = $Backend;
+        $this->Logger = $Logger;
+    }
+
+    public function get_logger(): LoggerInterface
+    {
+        return $this->Logger;
     }
 
 

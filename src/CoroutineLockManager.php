@@ -8,6 +8,7 @@ use Azonmedia\Lock\Interfaces\BackendInterface;
 use Azonmedia\Lock\Interfaces\LockInterface;
 use Azonmedia\Lock\Interfaces\LockManagerInterface;
 use Azonmedia\Utilities\GeneralUtil;
+use Psr\Log\LoggerInterface;
 
 /**
  * Class CoroutineLockManager
@@ -31,9 +32,20 @@ implements LockManagerInterface
      */
     protected $Backend;
 
-    public function __construct(BackendInterface $Backend)
+    /**
+     * @var LoggerInterface
+     */
+    protected $Logger;
+
+    public function __construct(BackendInterface $Backend, LoggerInterface $Logger)
     {
         $this->Backend = $Backend;
+        $this->Logger = $Logger;
+    }
+
+    public function get_logger(): LoggerInterface
+    {
+        return $this->Logger;
     }
 
     public function acquire_lock(string $resource, int $lock_level, &$ScopeReference = '&', int $lock_hold_microtime = LockManager::DEFAULT_LOCK_HOLD_MICROTIME, int $lock_wait_microtime = LockManager::DEFAULT_LOCK_WAIT_MICROTIME): LockInterface
@@ -43,7 +55,7 @@ implements LockManagerInterface
         }
         $root_cid = self::get_root_coroutine_id();//this is the coroutine handling the request in Swoole\Http\Server context
         if (empty($this->lock_managers[$root_cid])) {
-            $this->lock_managers[$root_cid] = new LockManager($this->Backend);
+            $this->lock_managers[$root_cid] = new LockManager($this->Backend, $this->Logger);
             defer(function () use ($root_cid) : void //this registers a new shutdown function for each coroutine
             {
                 unset($this->lock_managers[$root_cid]);//this should destroy the LockManager for this coroutine (as there shouldn't be any other references to this object)

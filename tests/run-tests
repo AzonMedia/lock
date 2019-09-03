@@ -1,1 +1,3 @@
 ./run-tests.php -p /web/php7.2/bin/php ./
+
+# http://qa.php.net/phpt_details.php

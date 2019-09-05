@@ -20,22 +20,22 @@ class SwooleTableBackend
      */
     public const DEFAULT_SWOOLE_TABLE_SIZE = 10000;
 
-    public const SWOOLE_TABLE_RECORD_SERIALIZED_DATA_LENGTH = 1024;
+    public const DEFAULT_SWOOLE_TABLE_RECORD_SERIALIZED_DATA_LENGTH = 1024;
 
     /**
      * The time it will wait between reattempting to obtain the lock in microseconds
      */
     public const DEFAULT_WAIT_STEP_MICROTIME = 1000;//cant be lower than 1000 microseconds (1msec) as swoole co::sleep() as of 4.4.4 does not support smaller
 
-    /**
-     * The "resource" is the key and the below is the structure for each key.
-     */
-    public const SWOOLE_TABLE_STRUCTURE = [
-        'lock_data' => [
-            'type'                      => \Swoole\Table::TYPE_STRING,
-            'size'                      => self::SWOOLE_TABLE_RECORD_SERIALIZED_DATA_LENGTH,
-        ]
-    ];
+//    /**
+//     * The "resource" is the key and the below is the structure for each key.
+//     */
+//    public const SWOOLE_TABLE_STRUCTURE = [
+//        'lock_data' => [
+//            'type'                      => \Swoole\Table::TYPE_STRING,
+//            'size'                      => self::DEFAULT_SWOOLE_TABLE_RECORD_SERIALIZED_DATA_LENGTH,
+//        ]
+//    ];
     /*
      * $lock_data = [
      * 0 => [
@@ -47,14 +47,17 @@ class SwooleTableBackend
      *      ]
      * ];
      *
-     *
-     *
      */
 
     /**
      * @var int
      */
     protected $swoole_table_size;
+
+    /**
+     * @var int
+     */
+    protected $swoole_table_record_serialized_data_length;
 
     /**
      * @var int
@@ -67,9 +70,17 @@ class SwooleTableBackend
      */
     protected $SwooleTable;
 
+    /**
+     * @var LoggerInterface
+     */
     protected $Logger;
 
-    public function __construct(LoggerInterface $Logger, int $swoole_table_size = self::DEFAULT_SWOOLE_TABLE_SIZE, int $wait_step_microtime = self::DEFAULT_WAIT_STEP_MICROTIME)
+    public function __construct(
+        LoggerInterface $Logger,
+        int $swoole_table_size = self::DEFAULT_SWOOLE_TABLE_SIZE,
+        int $swoole_table_record_serialized_data_length = self::DEFAULT_SWOOLE_TABLE_RECORD_SERIALIZED_DATA_LENGTH,
+        int $wait_step_microtime = self::DEFAULT_WAIT_STEP_MICROTIME
+    )
     {
         if (\Co::getCid() > 1) {
             throw new \RunTimeException(sprintf('Instances from %s need to be created before the swoole server is started. This instance is created in a coroutine whcih suggests it is being created inside the request (or other) handler of the server.', __CLASS__));
@@ -82,12 +93,14 @@ class SwooleTableBackend
         $this->Logger = $Logger;
 
         $this->swoole_table_size = $swoole_table_size;
+        $this->swoole_table_record_serialized_data_length = $swoole_table_record_serialized_data_length;
         $this->wait_step_microtime = $wait_step_microtime;
 
         $this->SwooleTable = new \Swoole\Table($this->swoole_table_size);
-        foreach (self::SWOOLE_TABLE_STRUCTURE as $key_name => $key_type) {
-            $this->SwooleTable->column($key_name, $key_type['type'], $key_type['size']);
-        }
+        //foreach (self::SWOOLE_TABLE_STRUCTURE as $key_name => $key_type) {
+        //    $this->SwooleTable->column($key_name, $key_type['type'], $key_type['size']);
+        //}
+        $this->SwooleTable->column('lock_data', \Swoole\Table::TYPE_STRING, $this->swoole_table_record_serialized_data_length);
         $this->SwooleTable->create();
     }
 
@@ -116,6 +129,10 @@ class SwooleTableBackend
 
         if (!isset(LockInterface::LOCK_MAP[$lock_level])) {
             throw new \InvalidArgumentException(sprintf('The provided lock level %s is not valid. For the valid lock levels please see %s.'), $lock_level, LockInterface::class);
+        }
+
+        if ($this->SwooleTable->count() === $this->swoole_table_size) {
+            throw new \RuntimeException(sprintf('The SwooleTable is full. Please raise the $swoole_table_size from its current value of %s elements.', $this->swoole_table_size));
         }
 
         $lock_requested_time = microtime(TRUE) * 1000000;

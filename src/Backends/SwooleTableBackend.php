@@ -9,6 +9,7 @@ use Azonmedia\Lock\Interfaces\BackendInterface;
 use Azonmedia\Lock\Interfaces\LockInterface;
 use Azonmedia\Lock\Lock;
 use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
 
 class SwooleTableBackend
     implements BackendInterface
@@ -26,6 +27,8 @@ class SwooleTableBackend
      * The time it will wait between reattempting to obtain the lock in microseconds
      */
     public const DEFAULT_WAIT_STEP_MICROTIME = 1000;//cant be lower than 1000 microseconds (1msec) as swoole co::sleep() as of 4.4.4 does not support smaller
+
+    public const DEFAULT_LOG_LEVEL = LogLevel::ERROR;
 
 //    /**
 //     * The "resource" is the key and the below is the structure for each key.
@@ -64,6 +67,11 @@ class SwooleTableBackend
      */
     protected $wait_step_microtime;
 
+    /**
+     * If an error occurs
+     * @var string
+     */
+    protected $log_level = self::DEFAULT_LOG_LEVEL;
 
     /**
      * @var \Swoole\Table
@@ -75,11 +83,13 @@ class SwooleTableBackend
      */
     protected $Logger;
 
+
     public function __construct(
         LoggerInterface $Logger,
         int $swoole_table_size = self::DEFAULT_SWOOLE_TABLE_SIZE,
         int $swoole_table_record_serialized_data_length = self::DEFAULT_SWOOLE_TABLE_RECORD_SERIALIZED_DATA_LENGTH,
-        int $wait_step_microtime = self::DEFAULT_WAIT_STEP_MICROTIME
+        int $wait_step_microtime = self::DEFAULT_WAIT_STEP_MICROTIME,
+        string $log_level = self::DEFAULT_LOG_LEVEL
     )
     {
         if (\Co::getCid() > 1) {
@@ -95,6 +105,7 @@ class SwooleTableBackend
         $this->swoole_table_size = $swoole_table_size;
         $this->swoole_table_record_serialized_data_length = $swoole_table_record_serialized_data_length;
         $this->wait_step_microtime = $wait_step_microtime;
+        $this->log_level = $log_level;
 
         $this->SwooleTable = new \Swoole\Table($this->swoole_table_size);
         //foreach (self::SWOOLE_TABLE_STRUCTURE as $key_name => $key_type) {
@@ -150,11 +161,18 @@ class SwooleTableBackend
             $record = $this->SwooleTable->get($resource);
 
             if ($record) {
-//                try {
+                try {
                     $lock_data = unserialize($record['lock_data']);
-//                } catch (\Exception $Exception) {
-//                    print $record['lock_data'];
-//                }
+                } catch (\Exception $Exception) {
+                    //it appears at very high loads it is possible to have a partially saved data like:
+                    // a:1:{i:0;a:5:{s:9:"worker_id";i:3381;s:12:"coroutine_id";i:2201;s:10:"lock_level
+                    $error_message = sprintf('Lock record for resource %s is damaged. %s', $resource, $Exception->getMessage() );
+                    $this->Logger->log($this->log_level, $error_message, []);
+                    //as the record is completely broken delete it and throw an exception that the lock can not be obtained
+                    //this does indeed remove any other locks but will allow for the application to continue to operate (as otherwise this record will remain "blocked" always throwing an error)
+                    $this->SwooleTable->del($resource);
+                    throw new LockException(sprintf('The %s lock on resource %s could not be obtained.', LockInterface::LOCK_MAP[$lock_level], $resource));
+                }
 
                 //do some cleanup
                 if (is_array($lock_data)) {
@@ -171,8 +189,9 @@ class SwooleTableBackend
                     }
                     $lock_data = array_values($lock_data);
                 } else {
-                    //$lock_data = [];
-                    throw new \RuntimeException(sprintf('The unserialized lock data is not an array.'));
+                    $lock_data = [];
+                    //throw new \RuntimeException(sprintf('The unserialized lock data is not an array.'));
+                    $this->Logger->log($this->log_level, 'The unserialized data for resource %s is not an array. The lock record is reset to an empty array.', []);
                 }
 
 
@@ -219,8 +238,8 @@ class SwooleTableBackend
                 }
                 //$record['lock_data'] = serialize($lock_data);
                 $record = ['lock_data'  => serialize($lock_data)];
-                if (strlen($record['lock_data']) > self::SWOOLE_TABLE_RECORD_SERIALIZED_DATA_LENGTH) {
-                    throw new \RuntimeException(sprintf('Unable to update lock data. The resulting SwooleTable record has serialized lock data exceeding %s.', self::SWOOLE_TABLE_RECORD_SERIALIZED_DATA_LENGTH));
+                if (strlen($record['lock_data']) > $this->swoole_table_record_serialized_data_length) {
+                    throw new \RuntimeException(sprintf('Unable to update lock data. The resulting SwooleTable record has serialized lock data exceeding %s.', $this->swoole_table_record_serialized_data_length));
                 }
 
                 //$this->SwooleTable->set($resource, $lock_data);
@@ -260,7 +279,19 @@ class SwooleTableBackend
             //the lock has already been released
             return;
         } else {
-            $lock_data = unserialize($record['lock_data']);
+            //$lock_data = unserialize($record['lock_data']);
+            try {
+                $lock_data = unserialize($record['lock_data']);
+            } catch (\Exception $Exception) {
+                //it appears at very high loads it is possible to have a partially saved data like:
+                // a:1:{i:0;a:5:{s:9:"worker_id";i:3381;s:12:"coroutine_id";i:2201;s:10:"lock_level
+                $error_message = sprintf('Lock record for resource %s is damaged. %s', $resource, $Exception->getMessage() );
+                $this->Logger->log($this->log_level, $error_message, []);
+                //as the record is completely broken delete it and throw an exception that the lock can not be obtained
+                //this does indeed remove any other locks but will allow for the application to continue to operate (as otherwise this record will remain "blocked" always throwing an error)
+                $this->SwooleTable->del($resource);
+                //do not throw an exception - by deleting the whole lock record the specific lock is released
+            }
             if (is_array($lock_data)) {
                 foreach ($lock_data as $lock_key=>$lock_datum) {
                     if ($lock_datum['worker_id'] === $worker_id && $lock_datum['coroutine_id'] === $coroutine_id) {
@@ -269,8 +300,9 @@ class SwooleTableBackend
                 }
                 $lock_data = array_values($lock_data);
             } else {
-                //$lock_data = [];
-                throw new \RuntimeException(sprintf('The unserialized lock data is not an array.'));
+                $lock_data = [];
+                //throw new \RuntimeException(sprintf('The unserialized lock data is not an array.'));
+                $this->Logger->log($this->log_level, 'The unserialized data for resource %s is not an array. The lock record is reset to an empty array and will be deleted.', []);
             }
 
             if (count($lock_data)) {

@@ -50,7 +50,7 @@ implements LockManagerInterface
 
     public function acquire_lock(string $resource, int $lock_level, &$ScopeReference = '&', int $lock_hold_microtime = LockManager::DEFAULT_LOCK_HOLD_MICROTIME, int $lock_wait_microtime = LockManager::DEFAULT_LOCK_WAIT_MICROTIME): LockInterface
     {
-        if (\Co::getCid() === -1) {
+        if (\Swoole\Coroutine::getCid() === -1) {
             throw new \RuntimeException(sprintf('The %s must be used/created in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
         }
         $root_cid = self::get_root_coroutine_id();//this is the coroutine handling the request in Swoole\Http\Server context
@@ -66,7 +66,7 @@ implements LockManagerInterface
 
     public function release_lock(string $resource, &$ScopeReference = '&'): void
     {
-        if (\Co::getCid() === -1) {
+        if (\Swoole\Coroutine::getCid() === -1) {
             throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
         }
         $root_cid = self::get_root_coroutine_id();
@@ -78,12 +78,12 @@ implements LockManagerInterface
 
     public static function get_root_coroutine_id() : int
     {
-        if (\Co::getCid() === -1) {
+        if (\Swoole\Coroutine::getCid() === -1) {
             throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
         }
         do {
-            $cid = \Co::getCid();
-            $pcid = \Co::getPcid($cid);
+            $cid = \Swoole\Coroutine::getCid();
+            $pcid = \Swoole\Coroutine::getPcid($cid);
             if ($pcid === -1) {
                 break;
             }
@@ -95,7 +95,7 @@ implements LockManagerInterface
 
     public function execute_with_lock(callable $callable, int $lock_level) /* mixed */
     {
-        if (\Co::getCid() === -1) {
+        if (\Swoole\Coroutine::getCid() === -1) {
             throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
         }
         $resource = GeneralUtil::get_callable_hash($callable);
@@ -107,7 +107,7 @@ implements LockManagerInterface
 
     public function release_all_own_locks() : void
     {
-        if (\Co::getCid() === -1) {
+        if (\Swoole\Coroutine::getCid() === -1) {
             throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
         }
         $root_cid = self::get_root_coroutine_id();
@@ -119,7 +119,7 @@ implements LockManagerInterface
 
     public function get_all_own_locks() : array
     {
-        if (\Co::getCid() === -1) {
+        if (\Swoole\Coroutine::getCid() === -1) {
             throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
         }
         $root_cid = self::get_root_coroutine_id();
@@ -131,7 +131,7 @@ implements LockManagerInterface
 
     public function get_lock_level(string $resource) : ?int
     {
-        if (\Co::getCid() === -1) {
+        if (\Swoole\Coroutine::getCid() === -1) {
             throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
         }
         $root_cid = self::get_root_coroutine_id();

@@ -26,7 +26,7 @@ class SwooleTableBackend
     /**
      * The time it will wait between reattempting to obtain the lock in microseconds
      */
-    public const DEFAULT_WAIT_STEP_MICROTIME = 1000;//cant be lower than 1000 microseconds (1msec) as swoole co::sleep() as of 4.4.4 does not support smaller
+    public const DEFAULT_WAIT_STEP_MICROTIME = 1000;//cant be lower than 1000 microseconds (1msec) as swoole Swoole\Coroutine\System::sleep() as of 4.4.4 does not support smaller
 
     public const DEFAULT_LOG_LEVEL = LogLevel::ERROR;
 
@@ -92,7 +92,7 @@ class SwooleTableBackend
         string $log_level = self::DEFAULT_LOG_LEVEL
     )
     {
-        if (\Co::getCid() > 1) {
+        if (\Swoole\Coroutine::getCid() > 1) {
             throw new \RunTimeException(sprintf('Instances from %s need to be created before the swoole server is started. This instance is created in a coroutine whcih suggests it is being created inside the request (or other) handler of the server.', __CLASS__));
         }
 
@@ -128,7 +128,7 @@ class SwooleTableBackend
 
     /**
      * It is a blocking function - either obtains the lock or throws an exception.
-     * In terms of Swoole - it is not coroutine blocking. Uses co::sleep() instead of sleep().
+     * In terms of Swoole - it is not coroutine blocking. Uses Swoole\Coroutine\System::sleep() instead of sleep().
      * @param string $resource
      * @param int $lock_level
      * @param int $lock_hold_microtime
@@ -148,7 +148,7 @@ class SwooleTableBackend
 
         $lock_requested_time = microtime(TRUE) * 1000000;
 
-        $coroutine_id = \Co::getCid();
+        $coroutine_id = \Swoole\Coroutine::getCid();
         //as there is currently no way to statically obtain the worker_id and passing it around would create another dependency we will use for now getmypid() instead
         //https://github.com/swoole/swoole-src/issues/2793
         $worker_id = getmypid();
@@ -255,7 +255,7 @@ class SwooleTableBackend
                 }
             }
 
-            \Co::sleep($this->wait_step_microtime / 1000000);//do not block and let other coroutines to executine in the meantime
+            \Swoole\Coroutine\System::sleep($this->wait_step_microtime / 1000000);//do not block and let other coroutines to executine in the meantime
             $current_microtime = (int) (microtime(TRUE) * 1000000);
             if ($current_microtime - $lock_wait_microtime > $lock_requested_time) {
                 //we couldnt obtain the lock in the allocated time
@@ -269,7 +269,7 @@ class SwooleTableBackend
 
         //$this->SwooleTable->del($resource);
         //unset($this->SwooleTable[$resource]);
-        $coroutine_id = \Co::getCid();
+        $coroutine_id = \Swoole\Coroutine::getCid();
         //as there is currently no way to statically obtain the worker_id and passing it around would create another dependency we will use for now getmypid() instead
         //https://github.com/swoole/swoole-src/issues/2793
         $worker_id = getmypid();

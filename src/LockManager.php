@@ -122,7 +122,7 @@ implements LockManagerInterface
                 throw new \LogicException(sprintf('The LockManager stack has no data for resource %s.', $resource));
             }
             if (!isset($this->lock_stack[$resource][count($this->lock_stack[$resource]) - 1])) {
-                throw new \RuntimeException(sprintf('Attempting to release a lock on resource "%s" without obtaining any locks before that.'));
+                throw new \RuntimeException(sprintf('Attempting to release a lock on resource "%s" without obtaining any locks before that.', $resource));
             }
 
             $Lock = $this->lock_stack[$resource][count($this->lock_stack[$resource]) - 1]['lock'];

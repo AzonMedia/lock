@@ -9,12 +9,13 @@ use Azonmedia\Lock\Interfaces\LockInterface;
 use Azonmedia\Lock\Interfaces\LockManagerInterface;
 use Azonmedia\Utilities\GeneralUtil;
 use Psr\Log\LoggerInterface;
+use Swoole\Coroutine;
 
 /**
  * Class CoroutineLockManager
  * To be used in coroutine context.
  * It creates a separate instance of LockManager for each coroutine.
- * This instance is destroyed at the end of the coroutine (by using defer())
+ * Each coroutine must have its own LockManager as this contains the lock_stack and this stack must not be shared between the coroutines (as they execute independently)
  * @package Azonmedia\lock
  */
 class CoroutineLockManager
@@ -41,6 +42,12 @@ implements LockManagerInterface
     {
         $this->Backend = $Backend;
         $this->Logger = $Logger;
+
+        //it is allowed to initialize the CoroutineLockManager outside coroutine as this is needed for the SwooleTableBackend
+        //it is OK as long it is not used / methods invoked
+//        if (\Swoole\Coroutine::getCid() === -1) {
+//            throw new \RuntimeException(sprintf('The %s must be used/created in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
+//        }
     }
 
     public function get_logger(): LoggerInterface
@@ -50,54 +57,37 @@ implements LockManagerInterface
 
     public function acquire_lock(string $resource, int $lock_level, &$ScopeReference = '&', int $lock_hold_microtime = LockManager::DEFAULT_LOCK_HOLD_MICROTIME, int $lock_wait_microtime = LockManager::DEFAULT_LOCK_WAIT_MICROTIME): LockInterface
     {
-        if (\Swoole\Coroutine::getCid() === -1) {
-            throw new \RuntimeException(sprintf('The %s must be used/created in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
-        }
-        $root_cid = self::get_root_coroutine_id();//this is the coroutine handling the request in Swoole\Http\Server context
-        if (empty($this->lock_managers[$root_cid])) {
-            $this->lock_managers[$root_cid] = new LockManager($this->Backend, $this->Logger);
-            defer(function () use ($root_cid) : void //this registers a new shutdown function for each coroutine
-            {
-                unset($this->lock_managers[$root_cid]);//this should destroy the LockManager for this coroutine (as there shouldn't be any other references to this object)
-            });
-        }
-        return $this->lock_managers[$root_cid]->acquire_lock($resource, $lock_level, $ScopeReference, $lock_hold_microtime, $lock_wait_microtime);
+        $this->initialize_lock_manager();
+        return Coroutine::getContext()->{LockManagerInterface::class}->acquire_lock($resource, $lock_level, $ScopeReference, $lock_hold_microtime, $lock_wait_microtime);
     }
 
     public function release_lock(string $resource, &$ScopeReference = '&'): void
     {
-        if (\Swoole\Coroutine::getCid() === -1) {
-            throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
-        }
-        $root_cid = self::get_root_coroutine_id();
-        if (!isset($this->lock_managers[$root_cid])) {
-            throw new \LogicException(sprintf('The %s has no %s for root coroutine %s.', __CLASS__, LockManager::class, $root_cid));
-        }
-        $this->lock_managers[$root_cid]->release_lock($resource, $ScopeReference);
+        $this->initialize_lock_manager();
+        Coroutine::getContext()->{LockManagerInterface::class}->release_lock($resource, $ScopeReference);
     }
 
-    public static function get_root_coroutine_id() : int
-    {
-        if (\Swoole\Coroutine::getCid() === -1) {
-            throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
-        }
-        do {
-            $cid = \Swoole\Coroutine::getCid();
-            $pcid = \Swoole\Coroutine::getPcid($cid);
-            if ($pcid === -1) {
-                break;
-            }
-            $cid = $pcid;
-        } while (true);
-
-        return $cid;
-    }
+    //NOT USED
+//    public static function get_root_coroutine_id() : int
+//    {
+//        if (\Swoole\Coroutine::getCid() === -1) {
+//            throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
+//        }
+//        do {
+//            $cid = \Swoole\Coroutine::getCid();
+//            $pcid = \Swoole\Coroutine::getPcid($cid);
+//            if ($pcid === -1) {
+//                break;
+//            }
+//            $cid = $pcid;
+//        } while (true);
+//
+//        return $cid;
+//    }
 
     public function execute_with_lock(callable $callable, int $lock_level) /* mixed */
     {
-        if (\Swoole\Coroutine::getCid() === -1) {
-            throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
-        }
+        $this->initialize_lock_manager();
         $resource = GeneralUtil::get_callable_hash($callable);
         $this->acquire_lock($resource, LockInterface::WRITE_LOCK, $LR);
         $ret = $callable();
@@ -107,37 +97,30 @@ implements LockManagerInterface
 
     public function release_all_own_locks() : void
     {
-        if (\Swoole\Coroutine::getCid() === -1) {
-            throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
-        }
-        $root_cid = self::get_root_coroutine_id();
-        if (!isset($this->lock_managers[$root_cid])) {
-            throw new \LogicException(sprintf('The %s has no %s for root coroutine %s.', __CLASS__, LockManager::class, $root_cid));
-        }
-        $this->lock_managers[$root_cid]->release_all_own_locks();
+        $this->initialize_lock_manager();
+        Coroutine::getContext()->{LockManagerInterface::class}->release_all_own_locks();
     }
 
     public function get_all_own_locks() : array
     {
-        if (\Swoole\Coroutine::getCid() === -1) {
-            throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
-        }
-        $root_cid = self::get_root_coroutine_id();
-        if (!isset($this->lock_managers[$root_cid])) {
-            throw new \LogicException(sprintf('The %s has no %s for root coroutine %s.', __CLASS__, LockManager::class, $root_cid));
-        }
-        return $this->lock_managers[$root_cid]->get_all_own_locks();
+        $this->initialize_lock_manager();
+        return Coroutine::getContext()->{LockManagerInterface::class}->get_all_own_locks();
     }
 
     public function get_lock_level(string $resource) : ?int
     {
-        if (\Swoole\Coroutine::getCid() === -1) {
-            throw new \RuntimeException(sprintf('The %s must be used in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
+        $this->initialize_lock_manager();
+        return Coroutine::getContext()->{LockManagerInterface::class}->get_lock_level($resource);
+    }
+
+    private function initialize_lock_manager()
+    {
+        if (Coroutine::getCid() === -1) {
+            throw new \RuntimeException(sprintf('The %s must be used/created in Coroutine context. When outside Coroutine context please use %s.', __CLASS__, LockManager::class));
         }
-        $root_cid = self::get_root_coroutine_id();
-        if (!isset($this->lock_managers[$root_cid])) {
-            throw new \LogicException(sprintf('The %s has no %s for root coroutine %s.', __CLASS__, LockManager::class, $root_cid));
+        $Context = Coroutine::getContext();
+        if (empty($Context->{LockManagerInterface::class})) {
+            $Context->{LockManagerInterface::class} = new LockManager($this->Backend, $this->Logger);
         }
-        return $this->lock_managers[$root_cid]->get_lock_level($resource);
     }
 }

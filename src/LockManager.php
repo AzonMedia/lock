@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Azonmedia\Lock;
 
+use Azonmedia\Di\Interfaces\CoroutineDependencyInterface;
 use Azonmedia\Lock\Interfaces\BackendInterface;
 use Azonmedia\Lock\Interfaces\LockInterface;
 use Azonmedia\Lock\Interfaces\LockManagerInterface;
@@ -16,7 +17,7 @@ use Psr\Log\LoggerInterface;
  * @package Azonmedia\lock
  */
 class LockManager
-implements LockManagerInterface
+implements LockManagerInterface, CoroutineDependencyInterface
 {
 
     /**
@@ -31,10 +32,22 @@ implements LockManagerInterface
 
     protected $lock_stack = [];
 
+    protected $all_own_locks_released = FALSE;
+
     public function __construct(BackendInterface $Backend, LoggerInterface $Logger)
     {
         $this->Backend = $Backend;
         $this->Logger = $Logger;
+        //print 'LOCK MGR CONSTR'.PHP_EOL;
+    }
+
+
+    /**
+     *
+     */
+    public function __destruct()
+    {
+        $this->release_all_own_locks();
     }
 
     public function get_logger(): LoggerInterface
@@ -119,7 +132,12 @@ implements LockManagerInterface
 
         if ($resource) {
             if (!isset($this->lock_stack[$resource])) {
-                throw new \LogicException(sprintf('The LockManager stack has no data for resource %s.', $resource));
+                if ($this->all_own_locks_released) {
+                    return;//silently return
+                } else {
+                    throw new \LogicException(sprintf('The LockManager stack has no data for resource %s.', $resource));
+
+                }
             }
             if (!isset($this->lock_stack[$resource][count($this->lock_stack[$resource]) - 1])) {
                 throw new \RuntimeException(sprintf('Attempting to release a lock on resource "%s" without obtaining any locks before that.', $resource));
@@ -174,6 +192,7 @@ implements LockManagerInterface
 
             }
         }
+        $this->all_own_locks_released = TRUE;
     }
 
     public function get_all_own_locks() : array
@@ -192,11 +211,4 @@ implements LockManagerInterface
         return isset($this->lock_stack[$resource]) ? $this->lock_stack[$resource][ count($this->lock_stack[$resource]) -1 ]['lock_level'] : NULL;
     }
 
-    /**
-     *
-     */
-    public function __destruct()
-    {
-        $this->release_all_own_locks();
-    }
 }

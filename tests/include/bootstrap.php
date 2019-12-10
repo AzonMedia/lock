@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 const SOURCE_PATH = '../src/';
 const NS_PREFIX = 'Azonmedia\\Lock';

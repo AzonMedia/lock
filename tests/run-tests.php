@@ -1,5 +1,6 @@
 #!/usr/bin/env php
 <?php
+declare(strict_types=1);
 /*
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
@@ -267,6 +268,7 @@ function write_information()
 	$info_file = __DIR__ . '/run-test-info.php';
 	@unlink($info_file);
 	$php_info = '<?php echo "
+declare(strict_types=1);
 PHP_SAPI    : " , PHP_SAPI , "
 PHP_VERSION : " , phpversion() , "
 ZEND_VERSION: " , zend_version() , "
@@ -303,6 +305,7 @@ More .INIs  : " , (function_exists(\'php_ini_scanned_files\') ? str_replace("\n"
 
 	// load list of enabled extensions
 	save_text($info_file, '<?php echo str_replace("Zend OPcache", "opcache", implode(",", get_loaded_extensions())); ?>');
+declare(strict_types=1);
 	$exts_to_test = explode(',',`$php $pass_options $info_params $no_file_cache "$info_file"`);
 	// check for extensions that need special handling and regenerate
 	$info_params_ex = array(

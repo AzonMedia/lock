@@ -15,6 +15,7 @@
     ],
     "require": {
         "php": ">=7.2.0",
+        "azonmedia/components": "dev-master",
         "azonmedia/utilities": "dev-master",
         "azonmedia/di": "dev-master"
     },

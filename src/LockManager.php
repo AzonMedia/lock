@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace Azonmedia\Lock;
 
-use Azonmedia\Di\Interfaces\CoroutineDependencyInterface;
 use Azonmedia\Lock\Interfaces\BackendInterface;
 use Azonmedia\Lock\Interfaces\LockInterface;
 use Azonmedia\Lock\Interfaces\LockManagerInterface;
@@ -17,7 +16,7 @@ use Psr\Log\LoggerInterface;
  * @package Azonmedia\lock
  */
 class LockManager
-implements LockManagerInterface, CoroutineDependencyInterface
+implements LockManagerInterface
 {
 
     /**

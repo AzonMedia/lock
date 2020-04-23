@@ -22,19 +22,20 @@ implements LockManagerInterface
     /**
      * @var BackendInterface
      */
-    protected $Backend;
+    protected BackendInterface $Backend;
 
     /**
      * @var LoggerInterface
      */
-    protected $Logger;
+    protected LoggerInterface $Logger;
 
-    protected $lock_stack = [];
+    protected array $lock_stack = [];
 
-    protected $all_own_locks_released = FALSE;
+    protected bool $all_own_locks_released = FALSE;
 
     public function __construct(BackendInterface $Backend, LoggerInterface $Logger)
     {
+
         $this->Backend = $Backend;
         $this->Logger = $Logger;
         //print 'LOCK MGR CONSTR'.PHP_EOL;
@@ -49,6 +50,9 @@ implements LockManagerInterface
         $this->release_all_own_locks();
     }
 
+    /**
+     * @return LoggerInterface
+     */
     public function get_logger(): LoggerInterface
     {
         return $this->Logger;
@@ -135,7 +139,6 @@ implements LockManagerInterface
                     return;//silently return
                 } else {
                     throw new \LogicException(sprintf('The LockManager stack has no data for resource %s.', $resource));
-
                 }
             }
             if (!isset($this->lock_stack[$resource][count($this->lock_stack[$resource]) - 1])) {
@@ -166,6 +169,7 @@ implements LockManagerInterface
      * Ensures that the provided code is executed only by one thread.
      * @param callable $callable
      * @param int $lock_level
+     * @return mixed The return value of the callable
      */
     public function execute_with_lock(callable $callable, int $lock_level) /* mixed */
     {
@@ -194,6 +198,9 @@ implements LockManagerInterface
         $this->all_own_locks_released = TRUE;
     }
 
+    /**
+     * @return array
+     */
     public function get_all_own_locks() : array
     {
         return $this->lock_stack;

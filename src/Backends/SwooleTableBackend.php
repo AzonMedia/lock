@@ -152,12 +152,13 @@ class SwooleTableBackend
         //as there is currently no way to statically obtain the worker_id and passing it around would create another dependency we will use for now getmypid() instead
         //https://github.com/swoole/swoole-src/issues/2793
         //$worker_id = getmypid();
-        $ServerInstance = \Swoole\Server::getInstance();
-        if ($ServerInstance) {
-            $worker_id = $ServerInstance->getWorkerId();
-        } else {
-            $worker_id = getmypid();
-        }
+        //$ServerInstance = \Swoole\Server::getInstance();//no longer available as of Swoole 4.5.0
+        //if ($ServerInstance) {
+        //    $worker_id = $ServerInstance->getWorkerId();
+        //} else {
+        //    $worker_id = getmypid();
+        //}
+        $worker_id = getmypid();
 
         do {
 
@@ -279,12 +280,13 @@ class SwooleTableBackend
         //as there is currently no way to statically obtain the worker_id and passing it around would create another dependency we will use for now getmypid() instead
         //https://github.com/swoole/swoole-src/issues/2793
         //$worker_id = getmypid();
-        $ServerInstance = \Swoole\Server::getInstance();
-        if ($ServerInstance) {
-            $worker_id = $ServerInstance->getWorkerId();
-        } else {
-            $worker_id = getmypid();
-        }
+//        $ServerInstance = \Swoole\Server::getInstance();//no longer available since Swoole 4.5.0
+//        if ($ServerInstance) {
+//            $worker_id = $ServerInstance->getWorkerId();
+//        } else {
+//            $worker_id = getmypid();
+//        }
+        $worker_id = getmypid();
 
         $record = $this->SwooleTable->get($resource);
         if (!$record) {

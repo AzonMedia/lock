@@ -4,7 +4,7 @@
     "description": "Lock provider",
     "keywords": ["lock","lock manager"],
     "homepage": "https://github.com/AzonMedia/lock",
-    "license": "BSD-3-Clause",
+    "license": "MIT",
     "authors": [
         {
             "name": "Vesko Kenashkov",
